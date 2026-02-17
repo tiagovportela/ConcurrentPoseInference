@@ -1,9 +1,10 @@
 package io.tiagovportela;
 
 import io.tiagovportela.datatypes.BoundingBox;
+import io.tiagovportela.inference.FramePreprocessor;
 import io.tiagovportela.metrics.FpsCsvExporter;
 import io.tiagovportela.metrics.FrameMetricsListener;
-import io.tiagovportela.posedetector.PoseDetector;
+import io.tiagovportela.inference.posedetector.PoseDetector;
 import io.tiagovportela.videoproducer.CameraSource;
 import nu.pattern.OpenCV;
 
@@ -19,6 +20,7 @@ public class Main {
         // Resolve the frames directory relative to the source tree
         File framesDir = new File("src/main/java/io/tiagovportela/videoproducer/frames");
         PoseDetector detector = new PoseDetector("src/main/resources/models/pose_detection.tflite");
+        FramePreprocessor preprocessor = new FramePreprocessor(224);
 
         // Pluggable metrics listener — swap implementation to change where data goes
         FrameMetricsListener metricsListener = new FpsCsvExporter("fps_metrics.csv");
@@ -35,7 +37,8 @@ public class Main {
 
                 System.out.printf("Frame %04d: %dx%d%n",
                         index, frame.cols(), frame.rows());
-                BoundingBox box = detector.detect(frame); // frame is an OpenCV Mat (BGR)
+                float[] input = preprocessor.preprocess(frame);
+                BoundingBox box = detector.detect(input);
                 if (box != null) {
                     System.out.println(box);
                 }

@@ -1,4 +1,4 @@
-package io.tiagovportela.posedetector;
+package io.tiagovportela.inference.posedetector;
 
 import io.tiagovportela.datatypes.BoundingBox;
 
@@ -7,10 +7,6 @@ import org.bytedeco.tensorflowlite.BuiltinOpResolver;
 import org.bytedeco.tensorflowlite.FlatBufferModel;
 import org.bytedeco.tensorflowlite.Interpreter;
 import org.bytedeco.tensorflowlite.InterpreterBuilder;
-
-import org.opencv.core.Mat;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,26 +62,16 @@ public class PoseDetector {
     }
 
     /**
-     * Detects the most prominent person bounding box in the given frame.
+     * Detects the most prominent person bounding box from preprocessed input data.
      *
-     * @param frame BGR image (any size)
+     * @param inputData preprocessed float array of shape [224*224*3] with values in
+     *                  [0, 1]
      * @return the best {@link BoundingBox} (normalised 0–1), or {@code null}
      *         if no person is detected above the confidence threshold
      */
-    public BoundingBox detect(Mat frame) {
-        // 1. Preprocess ──────────────────────────────────────────────
-        Mat resized = new Mat();
-        Imgproc.resize(frame, resized, new Size(INPUT_SIZE, INPUT_SIZE));
-        Imgproc.cvtColor(resized, resized, Imgproc.COLOR_BGR2RGB);
-        resized.convertTo(resized, org.opencv.core.CvType.CV_32FC3, 1.0 / 255.0);
-
-        // Copy pixel data into a float array [H * W * C]
+    public BoundingBox detect(float[] inputData) {
+        // 1. Write to the interpreter's input tensor ─────────────────
         int totalPixels = INPUT_SIZE * INPUT_SIZE * 3;
-        float[] inputData = new float[totalPixels];
-        resized.get(0, 0, inputData);
-        resized.release();
-
-        // Write to the interpreter's input tensor
         FloatPointer inputPtr = interpreter.typed_input_tensor_float(0);
         inputPtr.put(inputData, 0, totalPixels);
 
