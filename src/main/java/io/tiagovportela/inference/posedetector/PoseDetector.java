@@ -32,6 +32,7 @@ public class PoseDetector {
     private static final int NUM_VALUES = 12; // cx, cy, w, h + 4 keypoint pairs
     private static final float MIN_SCORE_THRESH = 0.5f;
     private static final float NMS_IOU_THRESH = 0.3f;
+    private static final float ROI_SCALE_FACTOR = 1.25f;
 
     private final Interpreter interpreter;
     private final float[][] anchors; // [NUM_BOXES][2] (center_x, center_y)
@@ -104,7 +105,11 @@ public class PoseDetector {
         }
 
         // 4. Decode detections ───────────────────────────────────────
+        // Each detection has: [cx, cy, w, h, kp0_x, kp0_y, kp1_x, kp1_y, kp2_x, kp2_y,
+        // kp3_x, kp3_y]
+        // kp0 = mid-hip center, kp1 = full-body top (above head)
         List<float[]> boxes = new ArrayList<>(); // [xMin, yMin, w, h]
+        List<float[]> keypoints = new ArrayList<>(); // [kp0_x, kp0_y, kp1_x, kp1_y]
         List<Float> scores = new ArrayList<>();
 
         for (int i = 0; i < NUM_BOXES; i++) {
@@ -118,6 +123,12 @@ public class PoseDetector {
             float w = regressorData[off + 2] / INPUT_SIZE;
             float h = regressorData[off + 3] / INPUT_SIZE;
 
+            // Extract keypoints (decoded same as cx/cy: offset/INPUT_SIZE + anchor)
+            float kp0x = regressorData[off + 4] / INPUT_SIZE + anchors[i][0];
+            float kp0y = regressorData[off + 5] / INPUT_SIZE + anchors[i][1];
+            float kp1x = regressorData[off + 6] / INPUT_SIZE + anchors[i][0];
+            float kp1y = regressorData[off + 7] / INPUT_SIZE + anchors[i][1];
+
             float xMin = cx - w / 2f;
             float yMin = cy - h / 2f;
 
@@ -128,6 +139,7 @@ public class PoseDetector {
             h = Math.max(0f, Math.min(1f - yMin, h));
 
             boxes.add(new float[] { xMin, yMin, w, h });
+            keypoints.add(new float[] { kp0x, kp0y, kp1x, kp1y });
             scores.add(score);
         }
 
@@ -139,8 +151,44 @@ public class PoseDetector {
         if (bestIdx < 0)
             return null;
 
-        float[] b = boxes.get(bestIdx);
-        return new BoundingBox(b[0], b[1], b[2], b[3], scores.get(bestIdx));
+        // 6. Compute full-body ROI from keypoints ────────────────────
+        return computeFullBodyROI(keypoints.get(bestIdx), scores.get(bestIdx));
+    }
+
+    /**
+     * Computes the full-body ROI from the detection keypoints.
+     * <p>
+     * Uses MediaPipe convention: keypoint 0 = mid-hip center,
+     * keypoint 1 = full-body top (above head). The ROI is a square
+     * centred on the person, scaled by 1.25× the distance between
+     * these two keypoints.
+     * </p>
+     */
+    private static BoundingBox computeFullBodyROI(float[] kps, float score) {
+        float hipX = kps[0], hipY = kps[1];
+        float topX = kps[2], topY = kps[3];
+
+        // Center of the ROI: midpoint between hip and top
+        float centerX = (hipX + topX) / 2f;
+        float centerY = (hipY + topY) / 2f;
+
+        // Scale: distance between keypoints × 1.25 padding factor
+        float dx = topX - hipX;
+        float dy = topY - hipY;
+        float dist = (float) Math.sqrt(dx * dx + dy * dy);
+        float roiSize = dist * ROI_SCALE_FACTOR;
+
+        // Build square ROI
+        float xMin = centerX - roiSize / 2f;
+        float yMin = centerY - roiSize / 2f;
+
+        // Clamp to [0, 1]
+        xMin = Math.max(0f, xMin);
+        yMin = Math.max(0f, yMin);
+        float w = Math.min(roiSize, 1f - xMin);
+        float h = Math.min(roiSize, 1f - yMin);
+
+        return new BoundingBox(xMin, yMin, w, h, score);
     }
 
     /*

@@ -8,6 +8,7 @@ import io.tiagovportela.inference.posetracker.PoseTracker;
 import io.tiagovportela.metrics.FpsCsvExporter;
 import io.tiagovportela.metrics.FrameMetricsListener;
 import io.tiagovportela.videoproducer.CameraSource;
+import io.tiagovportela.visualization.PoseVisualizer;
 import nu.pattern.OpenCV;
 
 import java.io.File;
@@ -22,7 +23,8 @@ public class Main {
         File framesDir = new File("src/main/java/io/tiagovportela/videoproducer/frames");
         FramePreprocessor preprocessor = new FramePreprocessor(224);
         PoseDetector detector = new PoseDetector("src/main/resources/models/pose_detection.tflite");
-        PoseTracker tracker = new PoseTracker("src/main/resources/pose_landmark_heavy.tflite");
+        PoseTracker tracker = new PoseTracker("src/main/resources/models/pose_landmark_heavy.tflite");
+        PoseVisualizer visualizer = new PoseVisualizer("output");
 
         FrameMetricsListener metricsListener = new FpsCsvExporter("fps_metrics.csv");
 
@@ -48,11 +50,9 @@ public class Main {
 
                     // Stage 2: Estimate landmarks (tracker handles crop + preprocess)
                     Landmark[] landmarks = tracker.track(frame, box);
-                    if (landmarks != null) {
-                        for (int i = 0; i < landmarks.length; i++) {
-                            System.out.printf("  Landmark %2d: %s%n", i, landmarks[i]);
-                        }
-                    }
+
+                    // Stage 3: Visualize and save annotated frame
+                    visualizer.draw(frame, landmarks, box, index);
                 }
 
                 metricsListener.onFrameProcessed(index, System.nanoTime() - t0);
