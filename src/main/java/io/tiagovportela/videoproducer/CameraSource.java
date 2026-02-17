@@ -1,7 +1,8 @@
 package io.tiagovportela.videoproducer;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
+import org.opencv.core.Mat;
+import org.opencv.imgcodecs.Imgcodecs;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,10 +23,10 @@ public class CameraSource {
      */
     @FunctionalInterface
     public interface FrameCallback {
-        void onFrameAvailable(BufferedImage frame, int frameIndex);
+        void onFrameAvailable(Mat frame, int frameIndex);
     }
 
-    private final List<BufferedImage> frames;
+    private final List<Mat> frames;
     private int currentFrameIndex;
 
     /**
@@ -52,8 +53,8 @@ public class CameraSource {
 
         this.frames = new ArrayList<>(frameFiles.length);
         for (File file : frameFiles) {
-            BufferedImage image = ImageIO.read(file);
-            if (image == null) {
+            Mat image = Imgcodecs.imread(file.getAbsolutePath());
+            if (image.empty()) {
                 throw new IOException("Failed to read image: " + file.getAbsolutePath());
             }
             frames.add(image);
@@ -65,7 +66,7 @@ public class CameraSource {
     /**
      * Returns the next frame, or {@code null} if all frames have been consumed.
      */
-    public BufferedImage getNextFrame() {
+    public Mat getNextFrame() {
         if (!hasNextFrame()) {
             return null;
         }
@@ -102,7 +103,7 @@ public class CameraSource {
     public void startPlayback(FrameCallback callback) {
         while (hasNextFrame()) {
             int index = currentFrameIndex;
-            BufferedImage frame = getNextFrame();
+            Mat frame = getNextFrame();
             callback.onFrameAvailable(frame, index);
         }
     }
