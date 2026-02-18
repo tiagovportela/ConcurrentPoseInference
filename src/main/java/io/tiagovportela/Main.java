@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 public class Main {
 
     public static void main(String[] args) {
-        boolean useMultithreading = false; // Set to false to run single-threaded version
+        boolean useMultithreading = true; // Set to false to run single-threaded version
         if (useMultithreading) {
             new Main().multiThreadedRun();
         } else {
@@ -95,7 +95,7 @@ public class Main {
         PoseTracker tracker = new PoseTracker("src/main/resources/models/pose_landmark_heavy.tflite");
         PoseVisualizer visualizer = new PoseVisualizer("output");
 
-        FrameMetricsListener metricsListener = new FpsCsvExporter("fps_metrics_single thread.csv");
+        FrameMetricsListener metricsListener = new FpsCsvExporter("fps_metrics_single_thread.csv");
 
         try {
             CameraSource camera = new CameraSource(framesDir);
