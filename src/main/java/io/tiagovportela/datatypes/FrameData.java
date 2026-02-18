@@ -5,21 +5,31 @@ import org.opencv.core.Mat;
 import java.util.List;
 
 public class FrameData {
+
+    /** Sentinel value signalling end-of-stream through the pipeline. */
+    public static final FrameData POISON_PILL = new FrameData(null, -1, null, null);
+
     private Mat frame;
     private long timestamp;
     private BoundingBox boundingBox;
-    private int landmarks;
+    private Landmark[] landmarks;
 
-    public FrameData(Mat frame, long timestamp, BoundingBox boundingBox, int landmarks) {
+    public FrameData(Mat frame, long timestamp, BoundingBox boundingBox, Landmark[] landmarks) {
         this.frame = frame;
         this.timestamp = timestamp;
         this.boundingBox = boundingBox;
         this.landmarks = landmarks;
     }
 
+    /** Returns true if this is the end-of-stream sentinel. */
+    public boolean isPoisonPill() {
+        return this == POISON_PILL;
+    }
+
     public Mat getFrame() {
         return frame;
     }
+
     public void setFrame(Mat frame) {
         this.frame = frame;
     }
@@ -27,6 +37,7 @@ public class FrameData {
     public long getTimestamp() {
         return timestamp;
     }
+
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
     }
@@ -34,14 +45,16 @@ public class FrameData {
     public BoundingBox getBoundingBox() {
         return boundingBox;
     }
+
     public void setBoundingBox(BoundingBox boundingBox) {
         this.boundingBox = boundingBox;
     }
 
-    public int getLandmarks() {
+    public Landmark[] getLandmarks() {
         return landmarks;
     }
-    public void setLandmarks(int landmarks) {
+
+    public void setLandmarks(Landmark[] landmarks) {
         this.landmarks = landmarks;
     }
 

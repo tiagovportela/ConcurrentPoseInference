@@ -12,10 +12,13 @@ public interface FrameMetricsListener {
     /**
      * Called after each frame has been processed.
      *
-     * @param frameIndex   zero-based index of the frame
-     * @param elapsedNanos time taken to process this frame, in nanoseconds
+     * @param frameIndex      zero-based index of the frame
+     * @param latencyNanos    time this frame spent in the pipeline, in nanoseconds
+     * @param throughputNanos time since the previous frame completed, in
+     *                        nanoseconds
+     *                        (0 for the first frame)
      */
-    void onFrameProcessed(int frameIndex, long elapsedNanos);
+    void onFrameProcessed(int frameIndex, long latencyNanos, long throughputNanos);
 
     /**
      * Called once after all frames have been processed. Use to flush / close

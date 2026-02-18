@@ -5,10 +5,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * A {@link FrameMetricsListener} that writes per-frame FPS data to a CSV file.
+ * A {@link FrameMetricsListener} that writes per-frame latency and throughput
+ * data to a CSV file.
  *
  * <p>
- * CSV columns: {@code frame_index, elapsed_ms, fps}
+ * CSV columns:
+ * {@code frame_index, latency_ms, throughput_ms, latency_fps, throughput_fps}
  * </p>
  */
 public class FpsCsvExporter implements FrameMetricsListener {
@@ -29,7 +31,7 @@ public class FpsCsvExporter implements FrameMetricsListener {
     public void onStart() {
         try {
             writer = new BufferedWriter(new FileWriter(outputPath));
-            writer.write("frame_index,elapsed_ms,fps");
+            writer.write("frame_index,latency_ms,throughput_ms,latency_fps,throughput_fps");
             writer.newLine();
         } catch (IOException e) {
             throw new RuntimeException("Failed to open CSV file: " + outputPath, e);
@@ -37,15 +39,19 @@ public class FpsCsvExporter implements FrameMetricsListener {
     }
 
     @Override
-    public void onFrameProcessed(int frameIndex, long elapsedNanos) {
+    public void onFrameProcessed(int frameIndex, long latencyNanos, long throughputNanos) {
         if (writer == null) {
             throw new IllegalStateException("onStart() must be called before onFrameProcessed()");
         }
         try {
-            double elapsedMs = elapsedNanos / 1_000_000.0;
-            double fps = elapsedMs > 0 ? 1000.0 / elapsedMs : 0.0;
-            writer.write(String.format("%d,%.2f,%.2f", frameIndex, elapsedMs, fps));
+            double latencyMs = latencyNanos / 1_000_000.0;
+            double throughputMs = throughputNanos / 1_000_000.0;
+            double latencyFps = latencyMs > 0 ? 1000.0 / latencyMs : 0.0;
+            double throughputFps = throughputMs > 0 ? 1000.0 / throughputMs : 0.0;
+            writer.write(String.format("%d,%.2f,%.2f,%.2f,%.2f",
+                    frameIndex, latencyMs, throughputMs, latencyFps, throughputFps));
             writer.newLine();
+            writer.flush();
         } catch (IOException e) {
             throw new RuntimeException("Failed to write CSV row for frame " + frameIndex, e);
         }
