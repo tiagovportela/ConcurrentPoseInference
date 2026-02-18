@@ -63,12 +63,21 @@ public class CameraSource {
         this.currentFrameIndex = 0;
     }
 
+    /** Simulated camera interval in milliseconds (~30 FPS). */
+    private static final long FRAME_INTERVAL_MS = 33;
+
     /**
      * Returns the next frame, or {@code null} if all frames have been consumed.
+     * Sleeps briefly to simulate a real camera's frame rate.
      */
     public Mat getNextFrame() {
         if (!hasNextFrame()) {
             return null;
+        }
+        try {
+            Thread.sleep(FRAME_INTERVAL_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
         return frames.get(currentFrameIndex++);
     }
