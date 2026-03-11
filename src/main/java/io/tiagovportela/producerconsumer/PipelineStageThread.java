@@ -1,30 +1,55 @@
 package io.tiagovportela.producerconsumer;
 
 import io.tiagovportela.producerconsumer.consumers.Consumer;
+import io.tiagovportela.producerconsumer.producers.Producer;
 
 /**
  * Generic thread wrapper for any pipeline stage.
- * Repeatedly calls {@link Consumer#consume()} until the stage signals
- * end-of-stream via {@link InterruptedException}.
+ * Repeatedly calls {@link Producer#produce()} or {@link Consumer#consume()}
+ * until the stage signals end-of-stream via {@link InterruptedException}.
  */
 public class PipelineStageThread implements Runnable {
 
-    private final Consumer stage;
+    private final Runnable stageAction;
     private final String name;
 
-    public PipelineStageThread(Consumer stage, String name) {
-        this.stage = stage;
+    public PipelineStageThread(Producer stage, String name) {
         this.name = name;
+        this.stageAction = () -> {
+            try {
+                stage.produce();
+            } catch (InterruptedException e) {
+                throw new StageInterruptedException(e);
+            }
+        };
+    }
+
+    public PipelineStageThread(Consumer stage, String name) {
+        this.name = name;
+        this.stageAction = () -> {
+            try {
+                stage.consume();
+            } catch (InterruptedException e) {
+                throw new StageInterruptedException(e);
+            }
+        };
     }
 
     @Override
     public void run() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                stage.consume();
+                stageAction.run();
             }
-        } catch (InterruptedException e) {
+        } catch (StageInterruptedException e) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /** Internal unchecked wrapper so the lambda can propagate InterruptedException. */
+    private static class StageInterruptedException extends RuntimeException {
+        StageInterruptedException(InterruptedException cause) {
+            super(cause);
         }
     }
 }

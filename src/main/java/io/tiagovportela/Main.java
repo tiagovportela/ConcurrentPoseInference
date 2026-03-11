@@ -4,6 +4,7 @@ import io.tiagovportela.config.PipelineConfig;
 import io.tiagovportela.datatypes.BoundingBox;
 import io.tiagovportela.datatypes.Landmark;
 import io.tiagovportela.inference.FramePreprocessor;
+import io.tiagovportela.inference.boundingboxmanager.BoundingBoxManager;
 import io.tiagovportela.inference.posedetector.PoseDetector;
 import io.tiagovportela.inference.posetracker.PoseTracker;
 import io.tiagovportela.metrics.FpsCsvExporter;
@@ -11,9 +12,7 @@ import io.tiagovportela.metrics.FrameMetricsListener;
 import io.tiagovportela.producerconsumer.FrameDataQueue;
 import io.tiagovportela.producerconsumer.PipelineStageThread;
 import io.tiagovportela.producerconsumer.consumers.BoundingBoxConsumer;
-import io.tiagovportela.producerconsumer.consumers.FrameConsumer;
-import io.tiagovportela.producerconsumer.consumers.LandmarksConsumer;
-import io.tiagovportela.producerconsumer.producers.FrameProducer;
+import io.tiagovportela.producerconsumer.producers.BoundingBoxProducer;
 import io.tiagovportela.videoproducer.CameraSource;
 import io.tiagovportela.visualization.PoseVisualizer;
 import nu.pattern.OpenCV;
@@ -39,8 +38,9 @@ public class Main {
     public void multiThreadedRun() {
         PipelineConfig config = PipelineConfig.builder()
                 .useMultithreading(true)
-                .fpsMetricsFile("results/fps_metrics_multithread.csv")
-                .stageMetricsFile("results/pipeline_stage_metrics_multithread.csv")
+                .fpsMetricsFile("results/fps_metrics_multithread_2_stages_bbmanagers.csv")
+                .stageMetricsFile("results/pipeline_stage_metrics_multithread_2_stages_bbmanagers.csv")
+                .threadPoolSize(2)
                 .build();
         FrameMetricsListener metrics = new FpsCsvExporter(config.getFpsMetricsFile(), config.getStageMetricsFile());
         PoseVisualizer visualizer = new PoseVisualizer(config.getOutputDir());
@@ -52,18 +52,20 @@ public class Main {
             CameraSource camera = new CameraSource(new File(config.getFramesDir()));
             System.out.println("Loaded " + camera.getTotalFrames() + " frames.");
 
-            FrameDataQueue frameQueue = new FrameDataQueue(config.getQueueCapacity());
-            FrameDataQueue bboxQueue = new FrameDataQueue(config.getQueueCapacity());
-            FrameDataQueue landmarksQueue = new FrameDataQueue(config.getQueueCapacity());
+            FrameDataQueue dataQueue = new FrameDataQueue(config.getQueueCapacity());
+            BoundingBoxManager bboxManager = new BoundingBoxManager();
 
             metrics.onStart();
 
             ExecutorService executor = Executors.newFixedThreadPool(config.getThreadPoolSize());
-            executor.execute(new PipelineStageThread(new FrameProducer(camera, frameQueue, metrics), "FrameProducer"));
-            executor.execute(new PipelineStageThread(new FrameConsumer(frameQueue, bboxQueue, metrics, preprocessor, detector), "FrameConsumer"));
-            executor.execute(new PipelineStageThread(new BoundingBoxConsumer(bboxQueue, landmarksQueue, metrics, tracker), "BoundingBoxConsumer"));
-            executor.execute(new PipelineStageThread(new LandmarksConsumer(landmarksQueue, visualizer, metrics), "LandmarksConsumer"));
-
+            executor.execute(new PipelineStageThread(
+                    new BoundingBoxProducer(
+                            camera, dataQueue, preprocessor, metrics, detector, bboxManager),
+                    "BoundingBoxProducer"));
+            executor.execute(new PipelineStageThread(
+                    new BoundingBoxConsumer(
+                            dataQueue, metrics, tracker, bboxManager, visualizer),
+                    "BoundingBoxConsumer"));
             executor.shutdown();
             if (!executor.awaitTermination(5, TimeUnit.MINUTES)) {
                 System.err.println("Pipeline did not terminate within timeout.");
@@ -81,8 +83,8 @@ public class Main {
     public void singleThreadedRun() {
         PipelineConfig config = PipelineConfig.builder()
                 .useMultithreading(true)
-                .fpsMetricsFile("results/fps_metrics_singlethread.csv")
-                .stageMetricsFile("results/pipeline_stage_metrics_singlethread.csv")
+                .fpsMetricsFile("results/fps_metrics_singlethread_2_stages.csv")
+                .stageMetricsFile("results/pipeline_stage_metrics_singlethread_2_stages.csv")
                 .build();
         FramePreprocessor preprocessor = new FramePreprocessor(config.getDetectorInputSize());
         PoseDetector detector = new PoseDetector(config.getPoseDetectionModelPath());
