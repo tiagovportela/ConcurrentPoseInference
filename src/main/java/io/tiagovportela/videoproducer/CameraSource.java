@@ -43,7 +43,7 @@ public class CameraSource {
             throw new IllegalArgumentException("Frames directory is invalid: " + framesDirectory);
         }
 
-        File[] frameFiles = framesDirectory.listFiles((dir, name) -> name.startsWith("img_") && name.endsWith(".png"));
+        File[] frameFiles = framesDirectory.listFiles((dir, name) -> name.startsWith("frame_") && name.endsWith(".jpg"));
 
         if (frameFiles == null || frameFiles.length == 0) {
             throw new IllegalArgumentException("No frame images found in: " + framesDirectory);

@@ -1,45 +1,47 @@
 package io.tiagovportela.metrics;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * A {@link FrameMetricsListener} that writes per-frame latency and throughput
- * data to a CSV file.
- *
+ * A {@link FrameMetricsListener} that writes per-frame latency/throughput
+ * and per-stage timing data to two CSV files.
  * <p>
- * CSV columns:
- * {@code frame_index, latency_ms, throughput_ms, latency_fps, throughput_fps}
- * </p>
+ * All write methods are synchronized for thread safety.
  */
 public class FpsCsvExporter implements FrameMetricsListener {
 
     private final String outputPath;
+    private final String stageOutputPath;
     private BufferedWriter writer;
+    private BufferedWriter stageWriter;
 
-    /**
-     * Creates an exporter that will write metrics to the given file path.
-     *
-     * @param outputPath path to the output CSV file
-     */
-    public FpsCsvExporter(String outputPath) {
+    public FpsCsvExporter(String outputPath, String stageOutputPath) {
         this.outputPath = outputPath;
+        this.stageOutputPath = stageOutputPath;
     }
 
     @Override
-    public void onStart() {
+    public synchronized void onStart() {
         try {
+            new File(outputPath).getParentFile().mkdirs();
             writer = new BufferedWriter(new FileWriter(outputPath));
             writer.write("frame_index,latency_ms,throughput_ms,latency_fps,throughput_fps");
             writer.newLine();
+
+            new File(stageOutputPath).getParentFile().mkdirs();
+            stageWriter = new BufferedWriter(new FileWriter(stageOutputPath));
+            stageWriter.write("frame_index,stage,duration_ms");
+            stageWriter.newLine();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to open CSV file: " + outputPath, e);
+            throw new RuntimeException("Failed to open CSV files", e);
         }
     }
 
     @Override
-    public void onFrameProcessed(int frameIndex, long latencyNanos, long throughputNanos) {
+    public synchronized void onFrameProcessed(int frameIndex, long latencyNanos, long throughputNanos) {
         if (writer == null) {
             throw new IllegalStateException("onStart() must be called before onFrameProcessed()");
         }
@@ -58,15 +60,35 @@ public class FpsCsvExporter implements FrameMetricsListener {
     }
 
     @Override
-    public void onFinish() {
-        if (writer != null) {
-            try {
+    public synchronized void recordStage(int frameIndex, String stage, long durationNanos) {
+        if (stageWriter == null) {
+            throw new IllegalStateException("onStart() must be called before recordStage()");
+        }
+        try {
+            double ms = durationNanos / 1_000_000.0;
+            stageWriter.write(String.format("%d,%s,%.2f", frameIndex, stage, ms));
+            stageWriter.newLine();
+            stageWriter.flush();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write stage metric", e);
+        }
+    }
+
+    @Override
+    public synchronized void onFinish() {
+        try {
+            if (writer != null) {
                 writer.flush();
                 writer.close();
                 System.out.println("FPS metrics written to: " + outputPath);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to close CSV file: " + outputPath, e);
             }
+            if (stageWriter != null) {
+                stageWriter.flush();
+                stageWriter.close();
+                System.out.println("Stage metrics written to: " + stageOutputPath);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to close CSV files", e);
         }
     }
 }

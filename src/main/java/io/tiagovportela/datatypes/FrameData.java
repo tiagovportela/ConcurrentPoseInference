@@ -13,6 +13,7 @@ public class FrameData {
     private long timestamp;
     private BoundingBox boundingBox;
     private Landmark[] landmarks;
+    private volatile long queueEntryTime;
 
     public FrameData(Mat frame, long timestamp, BoundingBox boundingBox, Landmark[] landmarks) {
         this.frame = frame;
@@ -56,6 +57,14 @@ public class FrameData {
 
     public void setLandmarks(Landmark[] landmarks) {
         this.landmarks = landmarks;
+    }
+
+    public long getQueueEntryTime() {
+        return queueEntryTime;
+    }
+
+    public void setQueueEntryTime(long queueEntryTime) {
+        this.queueEntryTime = queueEntryTime;
     }
 
 }

@@ -21,6 +21,15 @@ public interface FrameMetricsListener {
     void onFrameProcessed(int frameIndex, long latencyNanos, long throughputNanos);
 
     /**
+     * Records the duration of an individual pipeline stage.
+     *
+     * @param frameIndex    zero-based index of the frame
+     * @param stage         name of the pipeline stage (e.g. "detection", "landmarks")
+     * @param durationNanos time the stage took, in nanoseconds
+     */
+    void recordStage(int frameIndex, String stage, long durationNanos);
+
+    /**
      * Called once after all frames have been processed. Use to flush / close
      * resources.
      */
