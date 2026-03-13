@@ -4,6 +4,7 @@ import io.tiagovportela.config.PipelineConfig;
 import io.tiagovportela.datatypes.BoundingBox;
 import io.tiagovportela.datatypes.Landmark;
 import io.tiagovportela.inference.FramePreprocessor;
+import io.tiagovportela.inference.boudingboxmanager.BoundingBoxManager;
 import io.tiagovportela.inference.posedetector.PoseDetector;
 import io.tiagovportela.inference.posetracker.PoseTracker;
 import io.tiagovportela.metrics.FpsCsvExporter;
@@ -33,20 +34,24 @@ public class Main {
         OpenCV.loadLocally();
 
         new Main().multiThreadedRun();
-        new Main().singleThreadedRun();
+        //new Main().singleThreadedRun();
     }
 
     public void multiThreadedRun() {
         PipelineConfig config = PipelineConfig.builder()
                 .useMultithreading(true)
-                .fpsMetricsFile("results/fps_metrics_multithread.csv")
-                .stageMetricsFile("results/pipeline_stage_metrics_multithread.csv")
+                .fpsMetricsFile("results/fps_metrics_multithread_bbmanager.csv")
+                .stageMetricsFile("results/pipeline_stage_metrics_multithread_bbmanager.csv")
                 .build();
         FrameMetricsListener metrics = new FpsCsvExporter(config.getFpsMetricsFile(), config.getStageMetricsFile());
         PoseVisualizer visualizer = new PoseVisualizer(config.getOutputDir());
         FramePreprocessor preprocessor = new FramePreprocessor(config.getDetectorInputSize());
         PoseDetector detector = new PoseDetector(config.getPoseDetectionModelPath());
         PoseTracker tracker = new PoseTracker(config.getPoseLandmarkModelPath());
+        BoundingBoxManager bboxManager = new BoundingBoxManager(
+                config.getBoundingBoxUpdateIntervalNanos(),
+                config.getScoreThreshold(),
+                config.getIouThreshold());
 
         try {
             CameraSource camera = new CameraSource(new File(config.getFramesDir()));
@@ -60,8 +65,8 @@ public class Main {
 
             ExecutorService executor = Executors.newFixedThreadPool(config.getThreadPoolSize());
             executor.execute(new PipelineStageThread(new FrameProducer(camera, frameQueue, metrics), "FrameProducer"));
-            executor.execute(new PipelineStageThread(new FrameConsumer(frameQueue, bboxQueue, metrics, preprocessor, detector), "FrameConsumer"));
-            executor.execute(new PipelineStageThread(new BoundingBoxConsumer(bboxQueue, landmarksQueue, metrics, tracker), "BoundingBoxConsumer"));
+            executor.execute(new PipelineStageThread(new FrameConsumer(frameQueue, bboxQueue, metrics, preprocessor, detector, bboxManager), "FrameConsumer"));
+            executor.execute(new PipelineStageThread(new BoundingBoxConsumer(bboxQueue, landmarksQueue, metrics, tracker, bboxManager, config.getScoreThreshold()), "BoundingBoxConsumer"));
             executor.execute(new PipelineStageThread(new LandmarksConsumer(landmarksQueue, visualizer, metrics), "LandmarksConsumer"));
 
             executor.shutdown();
@@ -80,7 +85,7 @@ public class Main {
 
     public void singleThreadedRun() {
         PipelineConfig config = PipelineConfig.builder()
-                .useMultithreading(true)
+                .useMultithreading(false)
                 .fpsMetricsFile("results/fps_metrics_singlethread.csv")
                 .stageMetricsFile("results/pipeline_stage_metrics_singlethread.csv")
                 .build();

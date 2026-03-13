@@ -14,6 +14,7 @@ public class FrameData {
     private BoundingBox boundingBox;
     private Landmark[] landmarks;
     private volatile long queueEntryTime;
+    private boolean detectionSkipped;
 
     public FrameData(Mat frame, long timestamp, BoundingBox boundingBox, Landmark[] landmarks) {
         this.frame = frame;
@@ -65,6 +66,14 @@ public class FrameData {
 
     public void setQueueEntryTime(long queueEntryTime) {
         this.queueEntryTime = queueEntryTime;
+    }
+
+    public boolean isDetectionSkipped() {
+        return detectionSkipped;
+    }
+
+    public void setDetectionSkipped(boolean detectionSkipped) {
+        this.detectionSkipped = detectionSkipped;
     }
 
 }

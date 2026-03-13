@@ -12,6 +12,9 @@ public class PipelineConfig {
     private final String fpsMetricsFile;
     private final String stageMetricsFile;
     private final boolean useMultithreading;
+    private final long boundingBoxUpdateIntervalNanos;
+    private final float scoreThreshold;
+    private final float iouThreshold;
 
     private PipelineConfig(Builder builder) {
         this.framesDir = builder.framesDir;
@@ -24,6 +27,9 @@ public class PipelineConfig {
         this.fpsMetricsFile = builder.fpsMetricsFile;
         this.stageMetricsFile = builder.stageMetricsFile;
         this.useMultithreading = builder.useMultithreading;
+        this.boundingBoxUpdateIntervalNanos = builder.boundingBoxUpdateIntervalNanos;
+        this.scoreThreshold = builder.scoreThreshold;
+        this.iouThreshold = builder.iouThreshold;
     }
 
     public static Builder builder() {
@@ -40,6 +46,9 @@ public class PipelineConfig {
     public String getFpsMetricsFile() { return fpsMetricsFile; }
     public String getStageMetricsFile() { return stageMetricsFile; }
     public boolean isUseMultithreading() { return useMultithreading; }
+    public long getBoundingBoxUpdateIntervalNanos() { return boundingBoxUpdateIntervalNanos; }
+    public float getScoreThreshold() { return scoreThreshold; }
+    public float getIouThreshold() { return iouThreshold; }
 
     public static class Builder {
         private String framesDir = "src/main/java/io/tiagovportela/videoproducer/frames";
@@ -52,6 +61,9 @@ public class PipelineConfig {
         private String fpsMetricsFile = "results/fps_metrics.csv";
         private String stageMetricsFile = "results/pipeline_stage_metrics.csv";
         private boolean useMultithreading = true;
+        private long boundingBoxUpdateIntervalNanos = 100_000_000L; // 100ms
+        private float scoreThreshold = 0.5f;
+        private float iouThreshold = 0.3f;
 
         public Builder framesDir(String framesDir) { this.framesDir = framesDir; return this; }
         public Builder outputDir(String outputDir) { this.outputDir = outputDir; return this; }
@@ -63,6 +75,9 @@ public class PipelineConfig {
         public Builder fpsMetricsFile(String file) { this.fpsMetricsFile = file; return this; }
         public Builder stageMetricsFile(String file) { this.stageMetricsFile = file; return this; }
         public Builder useMultithreading(boolean use) { this.useMultithreading = use; return this; }
+        public Builder boundingBoxUpdateIntervalNanos(long nanos) { this.boundingBoxUpdateIntervalNanos = nanos; return this; }
+        public Builder scoreThreshold(float threshold) { this.scoreThreshold = threshold; return this; }
+        public Builder iouThreshold(float threshold) { this.iouThreshold = threshold; return this; }
 
         public PipelineConfig build() {
             return new PipelineConfig(this);
